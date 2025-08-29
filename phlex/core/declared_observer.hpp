@@ -49,12 +49,13 @@ namespace phlex::experimental {
   class observer : public declared_observer, private detect_flush_flag {
     using InputArgs = typename AlgorithmBits::input_parameter_types;
     using function_t = typename AlgorithmBits::bound_type;
-    static constexpr auto N = AlgorithmBits::N;
+    static constexpr auto N = AlgorithmBits::number_inputs;
 
     using stores_t = tbb::concurrent_hash_map<level_id::hash_type, bool>;
     using accessor = stores_t::accessor;
 
   public:
+    static constexpr auto number_output_products = 0ull;
     using node_ptr_type = declared_observer_ptr;
 
     observer(algorithm_name name,

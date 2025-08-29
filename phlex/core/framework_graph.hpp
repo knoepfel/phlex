@@ -69,7 +69,7 @@ namespace phlex::experimental {
 
     auto with(std::string name, auto f, concurrency c = concurrency::serial)
     {
-      return proxy().with(std::move(name), f, c);
+      return create_glue().with(std::move(name), f, c);
     }
 
     template <typename T>
@@ -80,12 +80,28 @@ namespace phlex::experimental {
 
     auto observe(std::string name, is_observer_like auto f, concurrency c = concurrency::serial)
     {
-      return proxy().observe(std::move(name), f, c);
+      return create_glue().observe(std::move(name), f, c);
     }
 
     auto predicate(std::string name, is_predicate_like auto f, concurrency c = concurrency::serial)
     {
-      return proxy().predicate(std::move(name), f, c);
+      return create_glue().predicate(std::move(name), f, c);
+    }
+
+    auto transform(std::string name, is_transform_like auto f, concurrency c = concurrency::serial)
+    {
+      return create_glue().transform(std::move(name), f, c);
+    }
+
+    template <std::size_t M>
+    auto products(std::array<std::string, M> output_products)
+    {
+      return create_glue().products(std::move(output_products));
+    }
+
+    auto products(std::convertible_to<std::string> auto&&... ts)
+    {
+      return create_glue().products(std::forward<decltype(ts)>(ts)...);
     }
 
     template <typename T, typename... Args>
@@ -104,7 +120,7 @@ namespace phlex::experimental {
     void drain();
     std::size_t original_message_id(product_store_ptr const& store);
 
-    glue<void_tag> proxy() { return {graph_, nodes_, nullptr, registration_errors_}; }
+    glue<void_tag> create_glue() { return {graph_, nodes_, nullptr, registration_errors_}; }
 
     template <typename T>
     unfold_glue<T> unfold_proxy()

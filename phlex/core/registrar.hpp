@@ -50,6 +50,7 @@
 #include <functional>
 #include <map>
 #include <optional>
+#include <span>
 #include <string>
 #include <vector>
 
@@ -61,7 +62,7 @@ namespace phlex::experimental {
   template <typename Ptr>
   class registrar {
     using Nodes = std::map<std::string, Ptr>;
-    using Creator = std::function<Ptr(std::vector<std::string>)>;
+    using node_creator = std::function<Ptr(std::vector<std::string>, std::span<std::string>)>;
 
   public:
     explicit registrar(Nodes& nodes, std::vector<std::string>& errors) :
@@ -75,18 +76,35 @@ namespace phlex::experimental {
     registrar(registrar&&) = default;
     registrar& operator=(registrar&&) = default;
 
-    void set_creator(Creator creator) { creator_ = std::move(creator); }
+    bool has_predicates() const { return predicates_.has_value(); }
+
+    void set_creator(node_creator creator) { creator_ = std::move(creator); }
     void set_predicates(std::optional<std::vector<std::string>> predicates)
     {
       predicates_ = std::move(predicates);
     }
 
-    bool has_predicates() const { return predicates_.has_value(); }
+    /// FIXME!  I think we need a more clever pattern if we're going to support
+    // g.products("a", "b") = g.transform(...).family(...);
+
+    template <std::size_t M>
+    void set_output_products(std::array<std::string, M> output_products)
+    {
+      assert(creator_);
+
+      auto ptr = creator_(release_predicates(), std::span{output_products});
+      auto name = ptr->full_name();
+      auto [_, inserted] = nodes_.try_emplace(name, std::move(ptr));
+      if (not inserted) {
+        errors_.push_back(fmt::format("Node with name '{}' already exists", name));
+      }
+      creator_ = nullptr;
+    }
 
     ~registrar() noexcept(false)
     {
       if (creator_) {
-        auto ptr = creator_(release_predicates());
+        auto ptr = creator_(release_predicates(), output_products_);
         auto name = ptr->full_name();
         auto [_, inserted] = nodes_->try_emplace(name, std::move(ptr));
         if (not inserted) {
@@ -101,15 +119,17 @@ namespace phlex::experimental {
       return std::move(predicates_).value_or(std::vector<std::string>{});
     }
 
+    std::vector<std::string> release_output_products() { return std::move(output_products_); }
+
     Nodes* nodes_;
     std::vector<std::string>* errors_;
-    Creator creator_{};
+    node_creator creator_{};
     std::optional<std::vector<std::string>> predicates_;
+    std::vector<std::string> output_products_{};
   };
 
   template <map_like Nodes>
   registrar(Nodes&, std::vector<std::string>&) -> registrar<typename Nodes::mapped_type>;
-
 }
 
 #endif // phlex_core_registrar_hpp

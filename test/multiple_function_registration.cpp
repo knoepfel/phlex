@@ -48,29 +48,25 @@ TEST_CASE("Call multiple functions", "[programming model]")
 
   SECTION("All free functions")
   {
-    g.with("square_numbers", square_numbers, concurrency::unlimited)
-      .transform("numbers")
-      .to("squared_numbers");
-    g.with("sum_numbers", sum_numbers, concurrency::unlimited)
-      .transform("squared_numbers")
-      .to("summed_numbers");
-    g.with("sqrt_sum_numbers", sqrt_sum_numbers, concurrency::unlimited)
-      .transform("summed_numbers", "offset")
-      .to("result");
+    g.products("squared_numbers") =
+      g.transform("square_numbers", square_numbers, concurrency::unlimited).family("numbers");
+    g.products("summed_numbers") =
+      g.transform("sum_numbers", sum_numbers, concurrency::unlimited).family("squared_numbers");
+    g.products("result") = g.transform("sqrt_sum_numbers", sqrt_sum_numbers, concurrency::unlimited)
+                             .family("summed_numbers", "offset");
   }
 
   SECTION("Transforms, one from a class")
   {
-    g.with("square_numbers", square_numbers, concurrency::unlimited)
-      .transform("numbers")
-      .to("squared_numbers");
-    g.with("sum_numbers", sum_numbers, concurrency::unlimited)
-      .transform("squared_numbers")
-      .to("summed_numbers");
-    g.make<A>()
-      .with("sqrt_sum", &A::sqrt_sum, concurrency::unlimited)
-      .transform("summed_numbers", "offset")
-      .to("result");
+    g.products("squared_numbers") =
+      g.transform("square_numbers", square_numbers, concurrency::unlimited).family("numbers");
+
+    g.products("summed_numbers") =
+      g.transform("sum_numbers", sum_numbers, concurrency::unlimited).family("squared_numbers");
+
+    g.products("result") = g.make<A>()
+                             .transform("sqrt_sum", &A::sqrt_sum, concurrency::unlimited)
+                             .family("summed_numbers", "offset");
   }
 
   // The following is invoked for *each* section above

@@ -9,7 +9,7 @@ using namespace phlex::experimental;
 
 PHLEX_EXPERIMENTAL_REGISTER_ALGORITHMS(m)
 {
-  m.with("add", test::add, concurrency::unlimited).transform("i", "j").to("sum");
+  m.products("sum") = m.transform("add", test::add, concurrency::unlimited).family("i", "j");
   m.observe(
      "verify", [](int actual) { assert(actual == 0); }, concurrency::unlimited)
     .family("sum");

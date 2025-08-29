@@ -46,20 +46,20 @@ TEST_CASE("Cached function calls", "[data model]")
 {
   framework_graph g{detail::create_next<cached_execution_source>()};
 
-  g.with("A1", call_one, concurrency::unlimited).transform("number"_in("run")).to("one");
-  g.with("A2", call_one, concurrency::unlimited).transform("one"_in("run")).to("used_one");
-  g.with("A3", call_one, concurrency::unlimited).transform("used_one"_in("run")).to("done_one");
+  g.products("one") =
+    g.transform("A1", call_one, concurrency::unlimited).family("number"_in("run"));
+  g.products("used_one") =
+    g.transform("A2", call_one, concurrency::unlimited).family("one"_in("run"));
+  g.products("done_one") =
+    g.transform("A3", call_one, concurrency::unlimited).family("used_one"_in("run"));
 
-  g.with("B1", call_two, concurrency::unlimited)
-    .transform("one"_in("run"), "another"_in("subrun"))
-    .to("two");
-  g.with("B2", call_two, concurrency::unlimited)
-    .transform("used_one"_in("run"), "two"_in("subrun"))
-    .to("used_two");
+  g.products("two") = g.transform("B1", call_two, concurrency::unlimited)
+                        .family("one"_in("run"), "another"_in("subrun"));
+  g.products("used_two") = g.transform("B2", call_two, concurrency::unlimited)
+                             .family("used_one"_in("run"), "two"_in("subrun"));
 
-  g.with("C", call_two, concurrency::unlimited)
-    .transform("used_two"_in("subrun"), "still"_in("event"))
-    .to("three");
+  g.products("three") = g.transform("C", call_two, concurrency::unlimited)
+                          .family("used_two"_in("subrun"), "still"_in("event"));
 
   g.execute("cached_execution_t");
 

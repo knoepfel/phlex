@@ -62,27 +62,27 @@ TEST_CASE("Call non-framework functions", "[programming model]")
   framework_graph g{store};
   SECTION("No framework")
   {
-    g.with("no_framework", no_framework).transform(product_names).to(oproduct_names);
+    g.products(oproduct_names) = g.transform("no_framework", no_framework).family(product_names);
   }
   SECTION("No framework, all references")
   {
-    g.with("no_framework_all_refs", no_framework_all_refs)
-      .transform(product_names)
-      .to(oproduct_names);
+    g.products(oproduct_names) =
+      g.transform("no_framework_all_refs", no_framework_all_refs).family(product_names);
   }
   SECTION("No framework, all pointers")
   {
-    g.with("no_framework_all_ptrs", no_framework_all_ptrs)
-      .transform(product_names)
-      .to(oproduct_names);
+    g.products(oproduct_names) =
+      g.transform("no_framework_all_ptrs", no_framework_all_ptrs).family(product_names);
   }
   SECTION("One framework argument")
   {
-    g.with("one_framework_arg", one_framework_arg).transform(product_names).to(oproduct_names);
+    g.products(oproduct_names) =
+      g.transform("one_framework_arg", one_framework_arg).family(product_names);
   }
   SECTION("All framework arguments")
   {
-    g.with("all_framework_args", all_framework_args).transform(product_names).to(oproduct_names);
+    g.products(oproduct_names) =
+      g.transform("all_framework_args", all_framework_args).family(product_names);
   }
 
   // The following is invoked for *each* section above

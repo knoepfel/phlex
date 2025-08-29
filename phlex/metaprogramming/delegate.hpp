@@ -39,7 +39,7 @@ namespace phlex::experimental {
     using bound_type = Bound;
     using algorithm_type = Algorithm;
     using input_parameter_types = function_parameter_types<Algorithm>;
-    static constexpr auto N = std::tuple_size_v<input_parameter_types>;
+    static constexpr auto number_inputs = std::tuple_size_v<input_parameter_types>;
 
     template <typename T>
     algorithm_bits(T object, Algorithm algorithm) :

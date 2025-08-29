@@ -59,6 +59,19 @@ namespace phlex::experimental {
     }
 
     template <typename FT>
+    auto transform(std::string name, FT f, concurrency c = concurrency::serial)
+    {
+      detail::verify_name(name, config_);
+      return make_registration<transform_node>(config_,
+                                               std::move(name),
+                                               algorithm_bits{bound_obj_, std::move(f)},
+                                               c,
+                                               graph_,
+                                               nodes_,
+                                               errors_);
+    }
+
+    template <typename FT>
     auto predicate(std::string name, FT f, concurrency c = concurrency::serial)
     {
       detail::verify_name(name, config_);
@@ -71,6 +84,18 @@ namespace phlex::experimental {
         graph_,
         nodes_,
         errors_);
+    }
+
+    template <std::size_t M>
+    auto products(std::array<std::string, M> output_products)
+    {
+      return output_products_setter{std::move(output_products)};
+    }
+
+    auto products(std::convertible_to<std::string> auto&&... ts)
+    {
+      constexpr std::size_t num_products = sizeof...(ts);
+      return products(std::array<std::string, num_products>{std::forward<decltype(ts)>(ts)...});
     }
 
     auto output_with(std::string name, is_output_like auto f, concurrency c = concurrency::serial)

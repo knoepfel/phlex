@@ -8,8 +8,7 @@
 #include <vector>
 
 namespace phlex::experimental {
-
-  template <typename Ptr>
+  template <typename Ptr, std::size_t NumberOutputProducts>
   class upstream_predicates {
   public:
     explicit upstream_predicates(registrar<Ptr> reg, configuration const* config) :
@@ -21,17 +20,20 @@ namespace phlex::experimental {
       registrar_.set_predicates(config->get_if_present<std::vector<std::string>>("when"));
     }
 
-    void when(std::vector<std::string> predicates)
+    auto when(std::vector<std::string> predicates)
     {
       if (!registrar_.has_predicates()) {
         registrar_.set_predicates(std::move(predicates));
       }
+      return std::move(*this);
     }
 
-    void when(std::convertible_to<std::string> auto&&... names)
+    auto when(std::convertible_to<std::string> auto&&... names)
     {
-      when({std::forward<decltype(names)>(names)...});
+      return when({std::forward<decltype(names)>(names)...});
     }
+
+    auto release_registrar() { return std::move(registrar_); }
 
   private:
     registrar<Ptr> registrar_;

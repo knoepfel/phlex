@@ -68,11 +68,11 @@ namespace phlex::experimental::test {
     using inputs_t = ensure_tuple<Inputs>;
     using algorithm_t = algorithm<inputs_t, Outputs>;
     concurrency const j{c.get<unsigned>("concurrency", concurrency::unlimited.value)};
-    m.template make<algorithm_t>(c.get<std::string>("module_label"),
-                                 c.get<unsigned>("duration_usec"))
-      .with("execute", &algorithm_t::execute, j)
-      .transform(c.get<typename algorithm_t::inputs>("inputs"))
-      .to(c.get<typename algorithm_t::outputs>("outputs"));
+    m.products(c.get<typename algorithm_t::outputs>("outputs")) =
+      m.template make<algorithm_t>(c.get<std::string>("module_label"),
+                                   c.get<unsigned>("duration_usec"))
+        .transform("execute", &algorithm_t::execute, j)
+        .family(c.get<typename algorithm_t::inputs>("inputs"));
   }
 }
 

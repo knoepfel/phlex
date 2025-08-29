@@ -60,6 +60,22 @@ namespace phlex::experimental {
       return create_glue().predicate(std::move(name), f, c);
     }
 
+    auto transform(std::string name, is_transform_like auto f, concurrency c = concurrency::serial)
+    {
+      return create_glue().transform(std::move(name), f, c);
+    }
+
+    template <std::size_t M>
+    auto products(std::array<std::string, M> output_products)
+    {
+      return create_glue().products(std::move(output_products));
+    }
+
+    auto products(std::convertible_to<std::string> auto&&... ts)
+    {
+      return create_glue().products(std::forward<decltype(ts)>(ts)...);
+    }
+
     template <typename Splitter>
     auto with(auto predicate, auto unfold, concurrency c = concurrency::serial)
     {
