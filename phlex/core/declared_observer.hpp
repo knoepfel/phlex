@@ -42,14 +42,15 @@ namespace phlex::experimental {
   };
 
   using declared_observer_ptr = std::unique_ptr<declared_observer>;
-  using declared_observers = std::map<std::string, declared_observer_ptr>;
 
   // =====================================================================================
 
-  template <is_observer_like FT, typename InputArgs>
+  template <typename AlgorithmBits>
   class observer : public declared_observer, private detect_flush_flag {
-    static constexpr auto N = std::tuple_size_v<InputArgs>;
-    using function_t = FT;
+    using InputArgs = typename AlgorithmBits::input_parameter_types;
+    using function_t = typename AlgorithmBits::bound_type;
+    static constexpr auto N = AlgorithmBits::N;
+
     using stores_t = tbb::concurrent_hash_map<level_id::hash_type, bool>;
     using accessor = stores_t::accessor;
 
@@ -60,7 +61,7 @@ namespace phlex::experimental {
              std::size_t concurrency,
              std::vector<std::string> predicates,
              tbb::flow::graph& g,
-             function_t&& f,
+             AlgorithmBits alg,
              std::array<specified_label, N> input) :
       declared_observer{std::move(name), std::move(predicates)},
       product_labels_{std::move(input)},
@@ -68,7 +69,7 @@ namespace phlex::experimental {
       join_{make_join_or_none(g, std::make_index_sequence<N>{})},
       observer_{g,
                 concurrency,
-                [this, ft = std::move(f)](
+                [this, ft = alg.release_algorithm()](
                   messages_t<N> const& messages) -> oneapi::tbb::flow::continue_msg {
                   auto const& msg = most_derived(messages);
                   auto const& [store, message_id] = std::tie(msg.store, msg.id);

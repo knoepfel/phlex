@@ -21,12 +21,10 @@ namespace phlex::experimental {
 
   template <template <typename...> typename HOF, typename AlgorithmBits>
   class registration_api {
-    using Algorithm = typename AlgorithmBits::bound_type;
-    using InputArgs = typename AlgorithmBits::input_parameter_types;
-    using hof_type = HOF<Algorithm, InputArgs>;
+    using hof_type = HOF<AlgorithmBits>;
     using NodePtr = typename hof_type::node_ptr_type;
 
-    static constexpr auto N = std::tuple_size_v<InputArgs>;
+    static constexpr auto N = AlgorithmBits::N;
 
   public:
     registration_api(configuration const* config,
@@ -38,7 +36,7 @@ namespace phlex::experimental {
                      std::vector<std::string>& errors) :
       config_{config},
       name_{config ? config->get<std::string>("module_label") : "", std::move(name)},
-      alg_{alg.release_algorithm()},
+      alg_{std::move(alg)},
       concurrency_{c},
       graph_{g},
       registrar_{nodes.registrar_for<NodePtr>(errors)}
@@ -75,7 +73,7 @@ namespace phlex::experimental {
   private:
     configuration const* config_;
     algorithm_name name_;
-    Algorithm alg_;
+    AlgorithmBits alg_;
     concurrency concurrency_;
     tbb::flow::graph& graph_;
     registrar<NodePtr> registrar_;
@@ -97,7 +95,6 @@ namespace phlex::experimental {
   template <typename T, typename FT>
   class bound_function : public node_options<bound_function<T, FT>> {
     using node_options_t = node_options<bound_function<T, FT>>;
-    using input_parameter_types = function_parameter_types<FT>;
 
     static constexpr auto N = number_parameters<FT>;
 
@@ -124,29 +121,25 @@ namespace phlex::experimental {
     auto transform(std::array<specified_label, N> input_args)
       requires is_transform_like<FT>
     {
-      auto algorithm = delegate(obj_, ft_);
-      return pre_transform<decltype(algorithm), input_parameter_types>{
-        nodes_.registrar_for<declared_transform_ptr>(errors_),
-        std::move(name_),
-        concurrency_.value,
-        node_options_t::release_predicates(),
-        graph_,
-        std::move(algorithm),
-        std::move(input_args)};
+      return pre_transform{nodes_.registrar_for<declared_transform_ptr>(errors_),
+                           std::move(name_),
+                           concurrency_.value,
+                           node_options_t::release_predicates(),
+                           graph_,
+                           algorithm_bits(obj_, std::move(ft_)),
+                           std::move(input_args)};
     }
 
     auto fold(std::array<specified_label, N - 1> input_args)
       requires is_fold_like<FT>
     {
-      auto algorithm = delegate(obj_, ft_);
-      return pre_fold<decltype(algorithm), skip_first_type<input_parameter_types>>{
-        nodes_.registrar_for<declared_fold_ptr>(errors_),
-        std::move(name_),
-        concurrency_.value,
-        node_options_t::release_predicates(),
-        graph_,
-        std::move(algorithm),
-        std::move(input_args)};
+      return pre_fold{nodes_.registrar_for<declared_fold_ptr>(errors_),
+                      std::move(name_),
+                      concurrency_.value,
+                      node_options_t::release_predicates(),
+                      graph_,
+                      algorithm_bits(obj_, std::move(ft_)),
+                      std::move(input_args)};
     }
 
     template <label_compatible L>

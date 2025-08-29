@@ -54,15 +54,15 @@ namespace phlex::experimental {
   };
 
   using declared_transform_ptr = std::unique_ptr<declared_transform>;
-  using declared_transforms = std::map<std::string, declared_transform_ptr>;
 
   // =====================================================================================
 
-  template <is_transform_like FT, typename InputArgs>
+  template <typename AlgorithmBits>
   class pre_transform {
+    using InputArgs = typename AlgorithmBits::input_parameter_types;
+    using function_t = typename AlgorithmBits::bound_type;
     static constexpr std::size_t N = std::tuple_size_v<InputArgs>;
-    static constexpr std::size_t M = number_output_objects<FT>;
-    using function_t = FT;
+    static constexpr std::size_t M = number_output_objects<function_t>;
 
     template <std::size_t M>
     class total_transform;
@@ -73,13 +73,13 @@ namespace phlex::experimental {
                   std::size_t concurrency,
                   std::vector<std::string> predicates,
                   tbb::flow::graph& g,
-                  function_t&& f,
+                  AlgorithmBits alg,
                   std::array<specified_label, N> input) :
       name_{std::move(name)},
       concurrency_{concurrency},
       predicates_{std::move(predicates)},
       graph_{g},
-      ft_{std::move(f)},
+      ft_{alg.release_algorithm()},
       input_{std::move(input)},
       reg_{std::move(reg)}
     {
@@ -131,9 +131,9 @@ namespace phlex::experimental {
 
   // =====================================================================================
 
-  template <is_transform_like FT, typename InputArgs>
+  template <typename AlgorithmBits>
   template <std::size_t M>
-  class pre_transform<FT, InputArgs>::total_transform :
+  class pre_transform<AlgorithmBits>::total_transform :
     public declared_transform,
     private detect_flush_flag {
     using stores_t = tbb::concurrent_hash_map<level_id::hash_type, product_store_ptr>;

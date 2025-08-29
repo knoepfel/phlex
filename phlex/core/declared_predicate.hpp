@@ -52,11 +52,14 @@ namespace phlex::experimental {
 
   // =====================================================================================
 
-  template <is_predicate_like FT, typename InputArgs>
+  template <typename AlgorithmBits>
   class predicate : public declared_predicate, private detect_flush_flag {
-    static constexpr auto N = std::tuple_size_v<InputArgs>;
-    using function_t = FT;
+    using InputArgs = typename AlgorithmBits::input_parameter_types;
+    using function_t = typename AlgorithmBits::bound_type;
+    static constexpr auto N = AlgorithmBits::N;
+
     using results_t = tbb::concurrent_hash_map<level_id::hash_type, predicate_result>;
+
     using accessor = results_t::accessor;
     using const_accessor = results_t::const_accessor;
 
@@ -67,33 +70,34 @@ namespace phlex::experimental {
               std::size_t concurrency,
               std::vector<std::string> predicates,
               tbb::flow::graph& g,
-              function_t&& f,
+              AlgorithmBits alg,
               std::array<specified_label, N> input) :
       declared_predicate{std::move(name), std::move(predicates)},
       product_labels_{std::move(input)},
       input_{form_input_arguments<InputArgs>(full_name(), product_labels_)},
       join_{make_join_or_none(g, std::make_index_sequence<N>{})},
-      predicate_{g,
-                 concurrency,
-                 [this, ft = std::move(f)](messages_t<N> const& messages) -> predicate_result {
-                   auto const& msg = most_derived(messages);
-                   auto const& [store, message_id] = std::tie(msg.store, msg.id);
-                   predicate_result result{};
-                   if (store->is_flush()) {
-                     flag_for(store->id()->hash()).flush_received(message_id);
-                   } else if (const_accessor a; results_.find(a, store->id()->hash())) {
-                     result = {msg.eom, message_id, a->second.result};
-                   } else if (accessor a; results_.insert(a, store->id()->hash())) {
-                     bool const rc = call(ft, messages, std::make_index_sequence<N>{});
-                     result = a->second = {msg.eom, message_id, rc};
-                     flag_for(store->id()->hash()).mark_as_processed();
-                   }
+      predicate_{
+        g,
+        concurrency,
+        [this, ft = alg.release_algorithm()](messages_t<N> const& messages) -> predicate_result {
+          auto const& msg = most_derived(messages);
+          auto const& [store, message_id] = std::tie(msg.store, msg.id);
+          predicate_result result{};
+          if (store->is_flush()) {
+            flag_for(store->id()->hash()).flush_received(message_id);
+          } else if (const_accessor a; results_.find(a, store->id()->hash())) {
+            result = {msg.eom, message_id, a->second.result};
+          } else if (accessor a; results_.insert(a, store->id()->hash())) {
+            bool const rc = call(ft, messages, std::make_index_sequence<N>{});
+            result = a->second = {msg.eom, message_id, rc};
+            flag_for(store->id()->hash()).mark_as_processed();
+          }
 
-                   if (done_with(store)) {
-                     results_.erase(store->id()->hash());
-                   }
-                   return result;
-                 }}
+          if (done_with(store)) {
+            results_.erase(store->id()->hash());
+          }
+          return result;
+        }}
     {
       make_edge(join_, predicate_);
     }
