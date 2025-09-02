@@ -46,7 +46,7 @@ namespace phlex::experimental {
   // =====================================================================================
 
   template <typename AlgorithmBits>
-  class observer : public declared_observer, private detect_flush_flag {
+  class observer_node : public declared_observer, private detect_flush_flag {
     using InputArgs = typename AlgorithmBits::input_parameter_types;
     using function_t = typename AlgorithmBits::bound_type;
     static constexpr auto N = AlgorithmBits::number_inputs;
@@ -58,12 +58,12 @@ namespace phlex::experimental {
     static constexpr auto number_output_products = 0ull;
     using node_ptr_type = declared_observer_ptr;
 
-    observer(algorithm_name name,
-             std::size_t concurrency,
-             std::vector<std::string> predicates,
-             tbb::flow::graph& g,
-             AlgorithmBits alg,
-             std::array<specified_label, N> input) :
+    observer_node(algorithm_name name,
+                  std::size_t concurrency,
+                  std::vector<std::string> predicates,
+                  tbb::flow::graph& g,
+                  AlgorithmBits alg,
+                  std::array<specified_label, N> input) :
       declared_observer{std::move(name), std::move(predicates)},
       product_labels_{std::move(input)},
       input_{form_input_arguments<InputArgs>(full_name(), product_labels_)},
@@ -91,7 +91,7 @@ namespace phlex::experimental {
       make_edge(join_, observer_);
     }
 
-    ~observer()
+    ~observer_node()
     {
       if (stores_.size() > 0ull) {
         spdlog::warn("Monitor {} has {} cached stores.", full_name(), stores_.size());

@@ -60,7 +60,7 @@ namespace phlex::experimental {
   namespace detail {
     template <std::size_t M>
     std::array<qualified_name, M> to_qualified_names(std::string const& name,
-                                                     std::span<std::string> output_labels)
+                                                     std::span<std::string const> output_labels)
     {
       std::array<qualified_name, M> outputs;
       std::ranges::transform(output_labels, outputs.begin(), to_qualified_name{name});
@@ -91,7 +91,7 @@ namespace phlex::experimental {
                    tbb::flow::graph& g,
                    AlgorithmBits alg,
                    std::array<specified_label, N> input,
-                   std::span<std::string> output) :
+                   std::span<std::string const> output) :
       declared_transform{std::move(name), std::move(predicates)},
       product_labels_{std::move(input)},
       input_{form_input_arguments<input_parameter_types>(full_name(), product_labels_)},

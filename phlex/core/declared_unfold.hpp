@@ -80,8 +80,8 @@ namespace phlex::experimental {
   class partial_unfold {
     using InputArgs = constructor_parameter_types<Object>;
     static constexpr std::size_t N = std::tuple_size_v<InputArgs>;
+    static constexpr std::size_t M = number_output_objects<Unfold>;
 
-    template <std::size_t M>
     class complete_unfold;
 
   public:
@@ -126,18 +126,17 @@ namespace phlex::experimental {
     }
 
   private:
-    template <std::size_t M>
     declared_unfold_ptr create(std::array<qualified_name, M> outputs)
     {
-      return std::make_unique<complete_unfold<M>>(std::move(name_),
-                                                  concurrency_,
-                                                  std::move(predicates_),
-                                                  graph_,
-                                                  std::move(predicate_),
-                                                  std::move(unfold_),
-                                                  std::move(product_labels_),
-                                                  std::move(outputs),
-                                                  std::move(new_level_name_));
+      return std::make_unique<complete_unfold>(std::move(name_),
+                                               concurrency_,
+                                               std::move(predicates_),
+                                               graph_,
+                                               std::move(predicate_),
+                                               std::move(unfold_),
+                                               std::move(product_labels_),
+                                               std::move(outputs),
+                                               std::move(new_level_name_));
     }
 
     algorithm_name name_;
@@ -154,7 +153,6 @@ namespace phlex::experimental {
   // =====================================================================================
 
   template <typename Object, typename Predicate, typename Unfold>
-  template <std::size_t M>
   class partial_unfold<Object, Predicate, Unfold>::complete_unfold :
     public declared_unfold,
     private detect_flush_flag {

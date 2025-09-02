@@ -53,7 +53,7 @@ namespace phlex::experimental {
   // =====================================================================================
 
   template <typename AlgorithmBits>
-  class predicate : public declared_predicate, private detect_flush_flag {
+  class predicate_node : public declared_predicate, private detect_flush_flag {
     using InputArgs = typename AlgorithmBits::input_parameter_types;
     using function_t = typename AlgorithmBits::bound_type;
     static constexpr auto N = AlgorithmBits::number_inputs;
@@ -67,12 +67,12 @@ namespace phlex::experimental {
     static constexpr auto number_output_products = 0ull;
     using node_ptr_type = declared_predicate_ptr;
 
-    predicate(algorithm_name name,
-              std::size_t concurrency,
-              std::vector<std::string> predicates,
-              tbb::flow::graph& g,
-              AlgorithmBits alg,
-              std::array<specified_label, N> input) :
+    predicate_node(algorithm_name name,
+                   std::size_t concurrency,
+                   std::vector<std::string> predicates,
+                   tbb::flow::graph& g,
+                   AlgorithmBits alg,
+                   std::array<specified_label, N> input) :
       declared_predicate{std::move(name), std::move(predicates)},
       product_labels_{std::move(input)},
       input_{form_input_arguments<InputArgs>(full_name(), product_labels_)},
@@ -103,7 +103,7 @@ namespace phlex::experimental {
       make_edge(join_, predicate_);
     }
 
-    ~predicate()
+    ~predicate_node()
     {
       if (results_.size() > 0ull) {
         spdlog::warn("Filter {} has {} cached results.", full_name(), results_.size());

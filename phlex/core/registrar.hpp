@@ -6,15 +6,15 @@
 // The registrar class completes the registration of a node at the end of a registration
 // statement.  For example:
 //
-//   g.make<MyTransform>()
-//     .with("name", &MyTransform::transform, concurrency{n})
-//     .when(...)
-//     .transform(...)
-//     .to(...);
-//             ^ Registration happens at the completion of the full statement.
+//   g.products(...) =
+//     g.make<MyTransform>()
+//       .transform("name", &MyTransform::transform, concurrency{n})
+//       .family(...)
+//       .when(...);
+//                 ^ Registration happens at the completion of the full statement.
 //
-// This is achieved by creating a class registrar class object (internally during any of
-// the declare* calls), which is then passed along through each successive function call
+// This is achieved by creating a registrar class object (internally during any of the
+// declare* calls), which is then passed along through each successive function call
 // (concurrency, when, etc.).  When the statement completes (i.e. the semicolon is
 // reached), the registrar object is destroyed, where the registrar's destructor registers
 // the declared function as a graph node to be used by the framework.
@@ -47,6 +47,7 @@
 //
 // =======================================================================================
 
+#include <cassert>
 #include <functional>
 #include <map>
 #include <optional>
@@ -56,13 +57,10 @@
 
 namespace phlex::experimental {
 
-  template <typename T>
-  concept map_like = requires { typename T::mapped_type; };
-
-  template <typename Ptr>
+  template <typename Ptr, std::size_t NumOutputs = 0ull>
   class registrar {
     using Nodes = std::map<std::string, Ptr>;
-    using node_creator = std::function<Ptr(std::vector<std::string>, std::span<std::string>)>;
+    using node_creator = std::function<Ptr(std::vector<std::string>, std::span<std::string const>)>;
 
   public:
     explicit registrar(Nodes& nodes, std::vector<std::string>& errors) :
@@ -90,26 +88,14 @@ namespace phlex::experimental {
     template <std::size_t M>
     void set_output_products(std::array<std::string, M> output_products)
     {
-      assert(creator_);
-
-      auto ptr = creator_(release_predicates(), std::span{output_products});
-      auto name = ptr->full_name();
-      auto [_, inserted] = nodes_.try_emplace(name, std::move(ptr));
-      if (not inserted) {
-        errors_.push_back(fmt::format("Node with name '{}' already exists", name));
-      }
+      create_node(output_products);
       creator_ = nullptr;
     }
 
     ~registrar() noexcept(false)
     {
       if (creator_) {
-        auto ptr = creator_(release_predicates(), output_products_);
-        auto name = ptr->full_name();
-        auto [_, inserted] = nodes_->try_emplace(name, std::move(ptr));
-        if (not inserted) {
-          errors_->push_back(fmt::format("Node with name '{}' already exists", name));
-        }
+        create_node(output_products_);
       }
     }
 
@@ -121,12 +107,27 @@ namespace phlex::experimental {
 
     std::vector<std::string> release_output_products() { return std::move(output_products_); }
 
+    void create_node(std::span<std::string const> output_product_labels)
+    {
+      assert(creator_);
+      auto ptr = creator_(release_predicates(), output_product_labels);
+      auto name = ptr->full_name();
+      auto [_, inserted] = nodes_.try_emplace(name, std::move(ptr));
+      if (not inserted) {
+        errors_.push_back(fmt::format("Node with name '{}' already exists", name));
+      }
+    }
+
     Nodes* nodes_;
     std::vector<std::string>* errors_;
     node_creator creator_{};
     std::optional<std::vector<std::string>> predicates_;
     std::vector<std::string> output_products_{};
   };
+
+  // Template-deduction guide
+  template <typename T>
+  concept map_like = requires { typename T::mapped_type; };
 
   template <map_like Nodes>
   registrar(Nodes&, std::vector<std::string>&) -> registrar<typename Nodes::mapped_type>;

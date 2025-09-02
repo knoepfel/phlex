@@ -49,13 +49,13 @@ namespace phlex::experimental {
     auto observe(std::string name, FT f, concurrency c = concurrency::serial)
     {
       detail::verify_name(name, config_);
-      return make_registration<observer>(config_,
-                                         std::move(name),
-                                         algorithm_bits{bound_obj_, std::move(f)},
-                                         c,
-                                         graph_,
-                                         nodes_,
-                                         errors_);
+      return make_registration<observer_node>(config_,
+                                              std::move(name),
+                                              algorithm_bits{bound_obj_, std::move(f)},
+                                              c,
+                                              graph_,
+                                              nodes_,
+                                              errors_);
     }
 
     template <typename FT>
@@ -75,15 +75,13 @@ namespace phlex::experimental {
     auto predicate(std::string name, FT f, concurrency c = concurrency::serial)
     {
       detail::verify_name(name, config_);
-      return make_registration<
-        phlex::experimental::predicate>( // Disambiguate from function template name
-        config_,
-        std::move(name),
-        algorithm_bits{bound_obj_, std::move(f)},
-        c,
-        graph_,
-        nodes_,
-        errors_);
+      return make_registration<predicate_node>(config_,
+                                               std::move(name),
+                                               algorithm_bits{bound_obj_, std::move(f)},
+                                               c,
+                                               graph_,
+                                               nodes_,
+                                               errors_);
     }
 
     template <std::size_t M>
