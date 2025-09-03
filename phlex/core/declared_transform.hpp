@@ -57,19 +57,6 @@ namespace phlex::experimental {
 
   // =====================================================================================
 
-  namespace detail {
-    template <std::size_t M>
-    std::array<qualified_name, M> to_qualified_names(std::string const& name,
-                                                     std::span<std::string const> output_labels)
-    {
-      std::array<qualified_name, M> outputs;
-      std::ranges::transform(output_labels, outputs.begin(), to_qualified_name{name});
-      return outputs;
-    }
-  }
-
-  // =====================================================================================
-
   template <typename AlgorithmBits>
   class transform_node : public declared_transform, private detect_flush_flag {
     using function_t = typename AlgorithmBits::bound_type;
@@ -95,7 +82,7 @@ namespace phlex::experimental {
       declared_transform{std::move(name), std::move(predicates)},
       product_labels_{std::move(input)},
       input_{form_input_arguments<input_parameter_types>(full_name(), product_labels_)},
-      output_{detail::to_qualified_names<M>(full_name(), output)},
+      output_{to_qualified_names<M>(full_name(), output)},
       join_{make_join_or_none(g, std::make_index_sequence<N>{})},
       transform_{g,
                  concurrency,

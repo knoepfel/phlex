@@ -45,6 +45,15 @@ namespace phlex::experimental {
   private:
     algorithm_name const& qualifier_;
   };
+
+  template <std::size_t M>
+  std::array<qualified_name, M> to_qualified_names(std::string const& name,
+                                                   std::span<std::string const> output_labels)
+  {
+    std::array<qualified_name, M> outputs;
+    std::ranges::transform(output_labels, outputs.begin(), to_qualified_name{name});
+    return outputs;
+  }
 }
 
 #endif // phlex_model_qualified_name_hpp

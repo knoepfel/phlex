@@ -57,7 +57,7 @@
 
 namespace phlex::experimental {
 
-  template <typename Ptr, std::size_t NumOutputs = 0ull>
+  template <typename Ptr>
   class registrar {
     using Nodes = std::map<std::string, Ptr>;
     using node_creator = std::function<Ptr(std::vector<std::string>, std::span<std::string const>)>;

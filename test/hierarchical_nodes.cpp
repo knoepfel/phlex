@@ -107,12 +107,8 @@ TEST_CASE("Hierarchical nodes", "[graph]")
   g.products("squared_number") =
     g.transform("square", square, concurrency::unlimited).family("number");
 
-  g.with("add", add, concurrency::unlimited)
-    .when()
-    .fold("squared_number")
-    .partitioned_by("run")
-    .to("added_data")
-    .initialized_with(15u);
+  g.products("added_data") =
+    g.fold("add", add, concurrency::unlimited, "run", 15u).family("squared_number").when();
 
   g.products("result") = g.transform("scale", scale, concurrency::unlimited).family("added_data");
   g.observe("print_result", print_result, concurrency::unlimited).family("result", "strtime");
