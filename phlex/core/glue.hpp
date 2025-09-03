@@ -4,7 +4,6 @@
 #include "phlex/concurrency.hpp"
 #include "phlex/core/bound_function.hpp"
 #include "phlex/core/concepts.hpp"
-#include "phlex/core/double_bound_function.hpp"
 #include "phlex/core/node_catalog.hpp"
 #include "phlex/core/registrar.hpp"
 #include "phlex/metaprogramming/delegate.hpp"
@@ -101,7 +100,8 @@ namespace phlex::experimental {
                 std::string destination_data_layer)
     {
       assert(!bound_obj_);
-      return double_bound_function<T, decltype(predicate), decltype(unfold)>{
+      detail::verify_name(name, config_);
+      return unfold_api<T, decltype(predicate), decltype(unfold)>{
         config_,
         std::move(name),
         std::move(predicate),
@@ -134,7 +134,7 @@ namespace phlex::experimental {
       return products(std::array<std::string, num_products>{std::forward<decltype(ts)>(ts)...});
     }
 
-    auto output_with(std::string name, is_output_like auto f, concurrency c = concurrency::serial)
+    auto output(std::string name, is_output_like auto f, concurrency c = concurrency::serial)
     {
       return output_creator{nodes_.registrar_for<declared_output_ptr>(errors_),
                             config_,
