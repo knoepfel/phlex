@@ -106,24 +106,20 @@ int main(int argc, char* argv[])
   {
     framework_graph g{source};
 
-    // g.with<X> is "registration code" as implemented in phlex.
-    // Each call to g.with<> creates a new CHOF in the graph.
-
     // Add the unfold node to the graph. We do not yet know how to provide the chunksize
     // to the constructor of the WaveformGenerator, so we will use the default value.
     demo::log_record("add_unfold");
     auto const chunksize = 256LL; // this could be read from a configuration file
 
-    g.with<demo::WaveformGenerator>(
-       &demo::WaveformGenerator::predicate,
-       [](demo::WaveformGenerator const& wg, std::size_t running_value) {
-         return wg.op(running_value, chunksize);
-       },
-       concurrency::unlimited)
-      .unfold("wgen"_in("spill")) // the type of node to create
-      .into("waves_in_apa")       // label the chunks we create as "waves_in_apa"
-      .within_family("APA")       // put the chunks into a data set category called "APA"
-      ;
+    g.products("waves_in_apa") =
+      g.unfold<demo::WaveformGenerator>(
+         &demo::WaveformGenerator::predicate,
+         [](demo::WaveformGenerator const& wg, std::size_t running_value) {
+           return wg.op(running_value, chunksize);
+         },
+         concurrency::unlimited,
+         "APA")
+        .family("wgen"_in("spill"));
 
     // Add the transform node to the graph.
     demo::log_record("add_transform");
@@ -135,8 +131,6 @@ int main(int argc, char* argv[])
       return demo::clampWaveforms(*hwf, run_id, subrun_id, spill_id, apa_id);
     };
 
-    // Because we are using a closure here, we have to provide a node name;
-    // the framework is unable to deduce the name of the "function".
     g.products("clamped_waves") =
       g.transform("clamp_node", wrapped_user_function, concurrency::unlimited)
         .family("waves_in_apa"_in("APA"));

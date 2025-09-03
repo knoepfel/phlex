@@ -14,7 +14,6 @@
 #include <concepts>
 #include <memory>
 #include <string>
-#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -61,17 +60,17 @@ namespace phlex::experimental {
 
     auto observe(std::string name, is_observer_like auto f, concurrency c = concurrency::serial)
     {
-      return create_glue().observe(std::move(name), f, c);
+      return create_glue().observe(std::move(name), std::move(f), c);
     }
 
     auto predicate(std::string name, is_predicate_like auto f, concurrency c = concurrency::serial)
     {
-      return create_glue().predicate(std::move(name), f, c);
+      return create_glue().predicate(std::move(name), std::move(f), c);
     }
 
     auto transform(std::string name, is_transform_like auto f, concurrency c = concurrency::serial)
     {
-      return create_glue().transform(std::move(name), f, c);
+      return create_glue().transform(std::move(name), std::move(f), c);
     }
 
     template <std::size_t M>
@@ -86,9 +85,18 @@ namespace phlex::experimental {
     }
 
     template <typename Splitter>
-    auto with(auto predicate, auto unfold, concurrency c = concurrency::serial)
+    auto unfold(std::string name,
+                is_predicate_like auto pred,
+                auto unf,
+                concurrency c = concurrency::serial)
     {
-      return unfold_glue<Splitter>(graph_, nodes_, errors_).declare_unfold(predicate, unfold, c);
+      return create_glue(false).unfold(std::move(name), std::move(pred), std::move(unf), c);
+    }
+
+    template <typename Splitter>
+    auto unfold(is_predicate_like auto pred, auto unf, concurrency c = concurrency::serial)
+    {
+      return create_glue(false).unfold(std::move(pred), std::move(unf), c);
     }
 
     auto output_with(std::string name, is_output_like auto f, concurrency c = concurrency::serial)
@@ -97,7 +105,7 @@ namespace phlex::experimental {
                             config_,
                             name,
                             graph_,
-                            delegate(bound_obj_, f),
+                            delegate(bound_obj_, std::move(f)),
                             c};
     }
 
@@ -112,7 +120,10 @@ namespace phlex::experimental {
     {
     }
 
-    glue<T> create_glue() { return glue{graph_, nodes_, bound_obj_, errors_, config_}; }
+    glue<T> create_glue(bool use_bound_object = true)
+    {
+      return glue{graph_, nodes_, (use_bound_object ? bound_obj_ : nullptr), errors_, config_};
+    }
 
     configuration const* config_;
     tbb::flow::graph& graph_;

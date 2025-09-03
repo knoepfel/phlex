@@ -94,6 +94,34 @@ namespace phlex::experimental {
                                                errors_);
     }
 
+    auto unfold(std::string name,
+                auto predicate,
+                auto unfold,
+                concurrency c,
+                std::string destination_data_layer)
+    {
+      assert(!bound_obj_);
+      return double_bound_function<T, decltype(predicate), decltype(unfold)>{
+        config_,
+        std::move(name),
+        std::move(predicate),
+        std::move(unfold),
+        c,
+        graph_,
+        nodes_,
+        errors_,
+        std::move(destination_data_layer)};
+    }
+
+    auto unfold(auto pred, auto unf, concurrency c, std::string destination_data_layer)
+    {
+      return unfold(detail::stripped_name(boost::core::demangle(typeid(T).name())),
+                    std::move(pred),
+                    std::move(unf),
+                    c,
+                    std::move(destination_data_layer));
+    }
+
     template <std::size_t M>
     auto products(std::array<std::string, M> output_products)
     {
@@ -120,37 +148,6 @@ namespace phlex::experimental {
     tbb::flow::graph& graph_;
     node_catalog& nodes_;
     std::shared_ptr<T> bound_obj_;
-    std::vector<std::string>& errors_;
-    configuration const* config_;
-  };
-
-  template <typename T>
-  class unfold_glue {
-  public:
-    unfold_glue(tbb::flow::graph& g,
-                node_catalog& nodes,
-                std::vector<std::string>& errors,
-                configuration const* config = nullptr) :
-      graph_{g}, nodes_{nodes}, errors_{errors}, config_{config}
-    {
-    }
-
-    auto declare_unfold(auto predicate, auto unfold, concurrency c)
-    {
-      return double_bound_function<T, decltype(predicate), decltype(unfold)>{
-        config_,
-        detail::stripped_name(boost::core::demangle(typeid(T).name())),
-        predicate,
-        unfold,
-        c,
-        graph_,
-        nodes_,
-        errors_};
-    }
-
-  private:
-    tbb::flow::graph& graph_;
-    node_catalog& nodes_;
     std::vector<std::string>& errors_;
     configuration const* config_;
   };

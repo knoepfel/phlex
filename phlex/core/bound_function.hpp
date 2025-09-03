@@ -132,8 +132,6 @@ namespace phlex::experimental {
 
   template <typename AlgorithmBits, typename... InitArgs>
   class fold_api {
-    using bound_type = typename AlgorithmBits::bound_type;
-    using function_t = typename AlgorithmBits::algorithm_type;
     using InitTuple = std::tuple<InitArgs...>;
 
     static constexpr auto N = AlgorithmBits::number_inputs;
