@@ -47,6 +47,8 @@
 //
 // =======================================================================================
 
+#include "phlex/utilities/simple_ptr_map.hpp"
+
 #include <cassert>
 #include <functional>
 #include <map>
@@ -59,7 +61,7 @@ namespace phlex::experimental {
 
   template <typename Ptr>
   class registrar {
-    using Nodes = std::map<std::string, Ptr>;
+    using Nodes = simple_ptr_map<Ptr>;
     using node_creator = std::function<Ptr(std::vector<std::string>, std::span<std::string const>)>;
 
   public:
@@ -105,8 +107,6 @@ namespace phlex::experimental {
       return std::move(predicates_).value_or(std::vector<std::string>{});
     }
 
-    std::vector<std::string> release_output_products() { return std::move(output_products_); }
-
     void create_node(std::span<std::string const> output_product_labels)
     {
       assert(creator_);
@@ -124,13 +124,6 @@ namespace phlex::experimental {
     std::optional<std::vector<std::string>> predicates_;
     std::vector<std::string> output_products_{};
   };
-
-  // Template-deduction guide
-  template <typename T>
-  concept map_like = requires { typename T::mapped_type; };
-
-  template <map_like Nodes>
-  registrar(Nodes&, std::vector<std::string>&) -> registrar<typename Nodes::mapped_type>;
 }
 
 #endif // phlex_core_registrar_hpp
