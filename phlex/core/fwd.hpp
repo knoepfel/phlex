@@ -13,6 +13,7 @@ namespace phlex::experimental {
   class end_of_message;
   class generator;
   class framework_graph;
+  struct message;
   class message_sender;
   class multiplexer;
   class products_consumer;
