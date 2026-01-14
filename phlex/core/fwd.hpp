@@ -4,6 +4,8 @@
 #include "phlex/model/fwd.hpp"
 #include "phlex/utilities/async_driver.hpp"
 
+#include "oneapi/tbb/flow_graph.h"
+
 #include <memory>
 
 namespace phlex::experimental {
@@ -19,6 +21,7 @@ namespace phlex::experimental {
   class products_consumer;
 
   using end_of_message_ptr = std::shared_ptr<end_of_message>;
+  using flusher_t = tbb::flow::broadcast_node<message>;
 }
 
 namespace phlex {
