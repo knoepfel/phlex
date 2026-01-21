@@ -82,9 +82,11 @@ namespace phlex::experimental {
     finalize();
     run();
   } catch (std::exception const& e) {
+    driver_.stop();
     spdlog::error(e.what());
     throw;
   } catch (...) {
+    driver_.stop();
     spdlog::error("Unknown exception during graph execution");
     throw;
   }
