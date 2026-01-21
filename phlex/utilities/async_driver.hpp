@@ -63,6 +63,9 @@ namespace phlex::experimental {
       current_ = std::make_optional(std::move(rt));
       cv_.notify_one();
       cv_.wait(lock, [&] { return !current_.has_value() or gear_ == states::park; });
+      if (!current_.has_value() and gear_ == states::park) {
+        throw std::runtime_error("Framework shutdown");
+      }
     }
 
   private:

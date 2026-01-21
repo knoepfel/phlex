@@ -23,6 +23,7 @@ namespace phlex::experimental {
 
   layer_sentry::~layer_sentry()
   {
+    // FIXME: Should skip this logic if the framework prematurely needs to shutdown
     auto flush_result = counters_.extract(store_->id());
     auto flush_store = store_->make_flush();
     if (not flush_result.empty()) {
@@ -65,7 +66,16 @@ namespace phlex::experimental {
     eoms_.push(nullptr);
   }
 
-  framework_graph::~framework_graph() = default;
+  framework_graph::~framework_graph()
+  {
+    if (shutdown_on_error_) {
+      // When in an error state, we need to sanely pop the layer stack and wait for any tasks to finish.
+      while (!layers_.empty()) {
+        layers_.pop();
+      }
+      graph_.wait_for_all();
+    }
+  }
 
   std::size_t framework_graph::execution_counts(std::string const& node_name) const
   {
@@ -84,10 +94,12 @@ namespace phlex::experimental {
   } catch (std::exception const& e) {
     driver_.stop();
     spdlog::error(e.what());
+    shutdown_on_error_ = true;
     throw;
   } catch (...) {
     driver_.stop();
     spdlog::error("Unknown exception during graph execution");
+    shutdown_on_error_ = true;
     throw;
   }
 
