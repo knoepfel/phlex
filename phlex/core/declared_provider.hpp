@@ -29,7 +29,7 @@ namespace phlex::experimental {
 
     std::string full_name() const;
     product_query const& output_product() const noexcept;
-    std::string const& layer() const noexcept;
+    identifier const& layer() const noexcept;
 
     virtual tbb::flow::receiver<index_message>* input_port() = 0;
     virtual tbb::flow::sender<message>& sender() = 0;
