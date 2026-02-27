@@ -3,10 +3,13 @@
 
 #include "catch2/catch_test_macros.hpp"
 #include "oneapi/tbb/flow_graph.h"
+#include "spdlog/sinks/basic_file_sink.h"
 #include "spdlog/spdlog.h"
 
 #include <atomic>
 #include <string>
+#include <string_view>
+#include <tuple>
 
 using namespace phlex::experimental;
 using namespace oneapi::tbb;
@@ -35,10 +38,17 @@ namespace {
     spdlog::info("Stop\t{}\t{}\t{}", algorithm, spill, data);
   }
 
+  void setup_file_logger(std::string const& test_name)
+  {
+    auto logger = spdlog::basic_logger_mt(test_name, test_name + ".txt", true);
+    spdlog::set_default_logger(logger);
+  }
+
 } // namespace
 
 TEST_CASE("Serialize functions based on resource", "[multithreading]")
 {
+  setup_file_logger("serialize_functions_based_on_resource");
   flow::graph g;
   unsigned int i{};
   flow::input_node src{g, [&i](flow_control& fc) {
@@ -112,8 +122,9 @@ TEST_CASE("Serialize functions based on resource", "[multithreading]")
   g.wait_for_all();
 }
 
-TEST_CASE("Serialize functions in unfold/merge graph", "[multithreading]")
+TEST_CASE("Serialize functions in diamond graph", "[multithreading]")
 {
+  setup_file_logger("serialize_functions_in_diamond_graph");
   flow::graph g;
   flow::input_node src{g, [i = 0u](flow_control& fc) mutable -> unsigned int {
                          if (i < 10u) {
@@ -156,7 +167,9 @@ TEST_CASE("Test based on oneTBB PR 1677 (RFC)", "[multithreading]")
 {
   using namespace std::chrono_literals;
 
-  // We first want to print a message that describes the different fields in our log messages
+  setup_file_logger("test_based_on_onetbb_pr_1677");
+
+  // We first print a message that describes the different fields in our log messages
   spdlog::set_pattern("%v");
   spdlog::info("time\tthread\tevent\tnode\tmessage\tdata");
 
@@ -175,16 +188,14 @@ TEST_CASE("Test based on oneTBB PR 1677 (RFC)", "[multithreading]")
                          return 0u;
                        }};
 
-  // Declare the counters that we use to verify that the resource constraints
-  // are being met.
+  // Declare the counters that we use to verify that the resource constraints are being met.
   std::atomic<unsigned int> root_counter{};
   std::atomic<unsigned int> genie_counter{};
   std::atomic<unsigned int> db_counter{};
 
   flow::resource_provider<ROOT> root_limiter{ROOT{}};
   flow::resource_provider<GENIE> genie_limiter{GENIE{}};
-  // We can use a temporary vector to create the DB objects that will
-  // be owned by db_limiter.
+
   DB const db1{1};
   DB const db13{13};
   flow::resource_provider<DB const*> db_limiter{&db1, &db13};
@@ -254,6 +265,5 @@ TEST_CASE("Test based on oneTBB PR 1677 (RFC)", "[multithreading]")
   make_edge(src, calibratorC);
 
   src.activate();
-
   g.wait_for_all();
 }
