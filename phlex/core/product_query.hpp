@@ -5,6 +5,7 @@
 #include "phlex/model/product_specification.hpp"
 #include "phlex/model/type_id.hpp"
 
+#include <concepts>
 #include <optional>
 #include <string>
 #include <tuple>
@@ -16,53 +17,27 @@ using namespace phlex::experimental::literals;
 namespace phlex {
   namespace detail {
     template <typename T>
-      requires std::is_same_v<experimental::identifier,
-                              T> // has to be a template for static_assert(false)
-    class required_creator_name {
+    class required {
     public:
-      required_creator_name()
-      {
-        static_assert(false, "The creator name has not been set in this product_query.");
-      }
-      required_creator_name(T&& rhs) : content_(std::move(rhs))
+      template <typename U>
+        requires std::constructible_from<T, U>
+      required(U&& u) : content_{std::forward_like<T>(u)}
       {
         if (content_.empty()) {
-          throw std::runtime_error("Cannot specify product with empty creator name.");
+          throw std::runtime_error("Cannot specify the empty string as a required field.");
         }
       }
 
       operator T const&() const noexcept { return content_; }
 
     private:
-      experimental::identifier content_;
-    };
-
-    template <typename T>
-      requires std::is_same_v<experimental::identifier,
-                              T> // has to be a template for static_assert(false)
-    class required_layer_name {
-    public:
-      required_layer_name()
-      {
-        static_assert(false, "The layer name has not been set in this product_query.");
-      }
-      required_layer_name(T&& rhs) : content_(std::move(rhs))
-      {
-        if (content_.empty()) {
-          throw std::runtime_error("Cannot specify the empty string as a data layer.");
-        }
-      }
-
-      operator T const&() const noexcept { return content_; }
-
-    private:
-      experimental::identifier content_;
+      T content_;
     };
   }
 
   struct product_query {
-    detail::required_creator_name<experimental::identifier> creator;
-    detail::required_layer_name<experimental::identifier> layer;
+    detail::required<experimental::identifier> creator;
+    detail::required<experimental::identifier> layer;
     std::optional<experimental::identifier> suffix;
     std::optional<experimental::identifier> stage;
     experimental::type_id type;

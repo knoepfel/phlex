@@ -18,6 +18,7 @@ namespace phlex::experimental {
     return h.result();
   }
 
+  identifier::identifier(char const* str) : identifier{std::string_view{str}} {}
   identifier::identifier(std::string_view str) : content_(str), hash_(hash_string(content_)) {}
 
   identifier::operator std::string_view() const noexcept { return std::string_view(content_); }

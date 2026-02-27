@@ -24,6 +24,7 @@ namespace phlex::experimental {
     identifier(identifier const& other) = default;
     identifier(identifier&& other) noexcept = default;
 
+    identifier(char const* str);
     explicit identifier(std::string_view str);
 
     identifier& operator=(identifier const& rhs) = default;
