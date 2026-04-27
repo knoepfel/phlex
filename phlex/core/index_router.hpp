@@ -5,10 +5,13 @@
 
 #include "phlex/core/fwd.hpp"
 #include "phlex/core/message.hpp"
+#include "phlex/model/child_tracker.hpp"
 #include "phlex/model/data_cell_counter.hpp"
 #include "phlex/model/data_cell_index.hpp"
 #include "phlex/model/identifier.hpp"
 
+#include "oneapi/tbb/concurrent_hash_map.h"
+#include "oneapi/tbb/concurrent_unordered_map.h"
 #include "oneapi/tbb/flow_graph.h"
 
 #include <functional>
@@ -32,55 +35,9 @@ namespace phlex::experimental {
     // join operation.  It:
     //   (a) routes index messages to either the matching layer or its data-layer parent, and
     //   (b) emits flush tokens to the repeater to evict a cached data product from memory.
-    class PHLEX_CORE_EXPORT multilayer_slot {
-    public:
-      multilayer_slot(tbb::flow::graph& g,
-                      identifier layer,
-                      tbb::flow::receiver<indexed_end_token>* flush_port,
-                      tbb::flow::receiver<index_message>* input_port);
-
-      void put_message(data_cell_index_ptr const& index, std::size_t message_id);
-      void put_end_token(data_cell_index_ptr const& index);
-
-      bool matches_exactly(std::string const& layer_path) const;
-      bool is_parent_of(data_cell_index_ptr const& index) const;
-
-    private:
-      identifier layer_;
-      detail::index_set_node broadcaster_;
-      detail::flush_node flusher_;
-      int counter_ = 0;
-    };
-
+    class multilayer_slot;
     using multilayer_slots = std::vector<std::shared_ptr<multilayer_slot>>;
-
-    // A layer_scope object is an RAII object that manages layer-scoped operations during
-    // data-cell-index routing. It updates flush counters on construction and ensures cleanup
-    // (flushing end tokens and releasing fold results) on destruction.
-    class PHLEX_CORE_EXPORT layer_scope {
-    public:
-      layer_scope(flush_counters& counters,
-                  flusher_t& flusher,
-                  multilayer_slots const& slots_for_layer,
-                  data_cell_index_ptr index,
-                  std::size_t message_id);
-      ~layer_scope();
-      layer_scope(layer_scope const&) = delete;
-      layer_scope& operator=(layer_scope const&) = delete;
-      layer_scope(layer_scope&&) = delete;
-      layer_scope& operator=(layer_scope&&) = delete;
-      std::size_t depth() const;
-
-    private:
-      // Non-owning references to externally-owned state; layer_scope is an RAII guard.
-      // NOLINTBEGIN(cppcoreguidelines-avoid-const-or-ref-data-members)
-      flush_counters& counters_;
-      flusher_t& flusher_;
-      multilayer_slots const& slots_;
-      // NOLINTEND(cppcoreguidelines-avoid-const-or-ref-data-members)
-      data_cell_index_ptr index_;
-      std::size_t message_id_;
-    };
+    using multilayer_slots_ptr = std::shared_ptr<multilayer_slots const>;
   }
 
   class PHLEX_CORE_EXPORT index_router {
@@ -101,49 +58,88 @@ namespace phlex::experimental {
     using provider_input_ports_t = std::map<std::string, provider_input_port_t>;
 
     explicit index_router(tbb::flow::graph& g);
-    data_cell_index_ptr route(data_cell_index_ptr index);
+    data_cell_index_ptr route(data_cell_index_ptr index, index_flushes flushes);
+
+    void establish_layers(std::vector<std::vector<std::string>> const& layer_paths_from_driver,
+                          std::vector<identifier> unfold_input_layer_names,
+                          std::vector<identifier> unfold_output_layer_names);
+
+    // Registers how many unfolds produce children from each input layer.  Must be called
+    // before execution so that child_trackers are initialized with the correct expected
+    // child count when they are first created.
+    void register_unfold_count_per_input_layer(std::map<identifier, std::size_t> counts);
 
     void finalize(tbb::flow::graph& g,
                   provider_input_ports_t provider_input_ports,
-                  std::map<std::string, named_index_ports> multilayers);
-    void drain();
+                  std::map<std::string, named_index_ports> multilayer_join_ports);
+    void drain(index_flushes flushes);
     flusher_t& flusher() { return flusher_; }
 
-  private:
-    void backout_to(data_cell_index_ptr store);
-    void send_to_provider_index_nodes(data_cell_index_ptr const& index, std::size_t message_id);
-    detail::multilayer_slots const& send_to_multilayer_join_nodes(data_cell_index_ptr const& index,
-                                                                  std::size_t message_id);
-    detail::index_set_node_ptr index_node_for(std::string const& layer);
+    tbb::flow::function_node<index_message, data_cell_index_ptr>& index_receiver()
+    {
+      return index_receiver_;
+    }
+    tbb::flow::function_node<unfold_flush>& flush_receiver() { return flush_receiver_; }
 
-    provider_input_ports_t provider_input_ports_;
+  private:
+    data_cell_index_ptr route(data_cell_index_ptr index,
+                              bool is_lowest_layer,
+                              std::size_t message_id);
+    bool index_is_lowest_layer(data_cell_index_ptr const& index);
+    detail::index_set_node_ptr index_set_node_for(std::string const& layer);
+    detail::index_set_node_ptr index_set_node_for(data_cell_index_ptr const& index);
+    std::pair<detail::multilayer_slots_ptr, detail::multilayer_slots_ptr> multilayer_slots_for(
+      data_cell_index_ptr const& index);
+    void update_flush_counts(index_flushes flushes);
+    child_tracker_ptr counter(data_cell_index_ptr const& index);
+    void flush_if_done(data_cell_index_ptr index, bool is_lowest_layer);
+
+    tbb::flow::function_node<index_message, data_cell_index_ptr> index_receiver_;
+    tbb::flow::function_node<unfold_flush> flush_receiver_;
     std::atomic<std::size_t> received_indices_{};
     flusher_t flusher_;
-    flush_counters counters_;
-    std::stack<detail::layer_scope> layers_;
+    tbb::concurrent_unordered_map<std::size_t, bool> is_lowest_layer_hashes_;
+    std::vector<identifier> unfold_input_layer_names_;
+    std::vector<identifier> unfold_output_layer_names_;
 
     // ==========================================================================================
     // Routing to provider nodes
     // The following maps are used to route data-cell indices to provider nodes.
-    // The first map is from layer name to the corresponding broadcaster node.
-    std::unordered_map<identifier, detail::index_set_node_ptr> broadcasters_;
-    // The second map is a cache from a layer hash matched to a broadcaster node, to avoid
+    // The first map is from layer name to the corresponding index-set node.
+    tbb::concurrent_unordered_map<identifier, detail::index_set_node_ptr> index_set_nodes_;
+    // The second map is a cache from a layer hash to an index-set node, to avoid
     // repeated lookups for the same layer.
-    std::unordered_map<std::size_t, detail::index_set_node_ptr> matched_broadcasters_;
+    tbb::concurrent_unordered_map<std::size_t, detail::index_set_node_ptr> index_set_node_cache_;
 
     // ==========================================================================================
     // Routing to multi-layer join nodes
-    // The first map is from the node name to the corresponding broadcaster nodes and flush
-    // nodes.
-    std::unordered_map<identifier, detail::multilayer_slots> multibroadcasters_;
-    // The second map is a cache from a layer hash matched to a set of multilayer slots, to
-    // avoid repeated lookups for the same layer.
-    std::unordered_map<std::size_t, detail::multilayer_slots> matched_routing_entries_;
-    // The third map is a cache from a layer hash matched to a set of multilayer slots for the
-    // purposes of flushing, to avoid repeated lookups for the same layer during flushing.
-    std::unordered_map<std::size_t, detail::multilayer_slots> matched_flushing_entries_;
-  };
+    // Maps from join-node name to the multilayer slots for that node.
+    tbb::concurrent_unordered_map<identifier, detail::multilayer_slots> multilayer_join_slots_;
 
+    // This struct lets get_multilayer_slots return message and end-token slots together,
+    // instead of passing concurrent_hash_map accessors as output parameters.
+    struct multilayer_slot_cache_entry {
+      detail::multilayer_slots_ptr message_slots;
+      detail::multilayer_slots_ptr end_token_slots;
+    };
+    // Cache from layer hash to matched message/end-token slots for that layer.
+    using multilayer_slot_cache_t =
+      tbb::concurrent_hash_map<std::size_t, multilayer_slot_cache_entry>;
+    using multilayer_slot_cache_accessor = multilayer_slot_cache_t::accessor;
+    using multilayer_slot_cache_const_accessor = multilayer_slot_cache_t::const_accessor;
+    multilayer_slot_cache_t multilayer_slot_cache_;
+
+    // ==========================================================================================
+    // Child trackers
+    using trackers_t = tbb::concurrent_hash_map<std::size_t, child_tracker_ptr>;
+    using accessor = trackers_t::accessor;
+    using const_accessor = trackers_t::const_accessor;
+    trackers_t child_trackers_;
+
+    // Number of unfolds that will send flush messages for each input layer.  Used to
+    // initialize child_trackers with the correct expected child count.
+    std::map<identifier, std::size_t> unfold_count_per_input_layer_;
+  };
 }
 
 #endif // PHLEX_CORE_INDEX_ROUTER_HPP
