@@ -387,9 +387,10 @@ namespace {
     bool conversion_ok = true;
     if (annot && PyDict_Check(annot)) {
       // Variant guarantees OrderedDict with "return" last
-      PyObject *key, *value;
       Py_ssize_t pos = 0;
 
+      PyObject* key = nullptr;
+      PyObject* value = nullptr;
       while (PyDict_Next(annot, &pos, &key, &value)) {
         std::string const& ann = annotation_as_text(value);
         if (ann.empty() && PyErr_Occurred()) {
