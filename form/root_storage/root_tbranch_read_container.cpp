@@ -9,6 +9,8 @@
 #include "TLeaf.h"
 #include "TTree.h"
 
+#include <gsl/pointers>
+
 #include <unordered_map>
 
 using namespace form::detail::experimental;
@@ -49,7 +51,7 @@ bool ROOT_TBranch_Read_ContainerImp::read(int id, void const** data, std::type_i
   if (id > m_tree->GetEntries())
     return false;
 
-  void* branchBuffer = nullptr;
+  gsl::owner<void*> branchBuffer = nullptr;
   auto dictInfo = TDictionary::GetDictionary(type);
   int branchStatus = 0;
 
@@ -61,12 +63,53 @@ bool ROOT_TBranch_Read_ContainerImp::read(int id, void const** data, std::type_i
   if (dictInfo->Property() & EProperty::kIsFundamental) {
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-static-cast-downcast)
     auto fundInfo = static_cast<TDataType*>(dictInfo); // Already checked to be fundamental
-    branchBuffer = new char[fundInfo->Size()];
-    branchStatus = m_tree->SetBranchAddress(col_name().c_str(),
-                                            reinterpret_cast<void*>(&branchBuffer),
-                                            nullptr,
-                                            EDataType(fundInfo->GetType()),
-                                            true);
+    switch (fundInfo->GetType()) {
+    case kChar_t:
+      branchBuffer = new Char_t;
+      break;
+    case kUChar_t:
+      branchBuffer = new UChar_t;
+      break;
+    case kShort_t:
+      branchBuffer = new Short_t;
+      break;
+    case kUShort_t:
+      branchBuffer = new UShort_t;
+      break;
+    case kInt_t:
+      branchBuffer = new Int_t;
+      break;
+    case kUInt_t:
+      branchBuffer = new UInt_t;
+      break;
+    case kLong_t:
+      branchBuffer = new Long_t;
+      break;
+    case kULong_t:
+      branchBuffer = new ULong_t;
+      break;
+    case kLong64_t:
+      branchBuffer = new Long64_t;
+      break;
+    case kULong64_t:
+      branchBuffer = new ULong64_t;
+      break;
+    case kFloat_t:
+      branchBuffer = new Float_t;
+      break;
+    case kDouble_t:
+      branchBuffer = new Double_t;
+      break;
+    case kBool_t:
+      branchBuffer = new Bool_t;
+      break;
+    default:
+      throw std::runtime_error(
+        std::string{"ROOT_TBranch_ContainerImp::read unsupported fundamental type: "} +
+        DemangleName(type));
+    };
+    branchStatus = m_tree->SetBranchAddress(
+      col_name().c_str(), branchBuffer, nullptr, EDataType(fundInfo->GetType()), false);
   } else {
     auto klass = TClass::GetClass(type);
     if (!klass) {
@@ -74,7 +117,7 @@ bool ROOT_TBranch_Read_ContainerImp::read(int id, void const** data, std::type_i
                                " (col_name='" + col_name() + "', type='" + DemangleName(type) +
                                "')");
     }
-    branchBuffer = klass->New();
+    branchBuffer = gsl::owner<void*>(klass->New());
     branchStatus = m_tree->SetBranchAddress(
       col_name().c_str(), reinterpret_cast<void*>(&branchBuffer), klass, EDataType::kOther_t, true);
   }
