@@ -19,7 +19,9 @@
 ### Python
 
 - ruff for formatting and linting (`pyproject.toml`)
-- Google-style docstrings; 99-char line limit; double quotes; type hints
+- Google-style docstrings; 99-char line limit; double quotes; type hints recommended
+- Use `from __future__ import annotations` to enable deferred evaluation of
+  type annotations (avoids forward-reference issues; Python >=3.12)
 - Test files: `test_*.py`
 - Do not name files after standard library modules (e.g., avoid `types.py`)
 
