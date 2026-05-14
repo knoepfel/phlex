@@ -109,7 +109,7 @@ namespace {
   struct py_callback {
     PyObject* m_callable; // owned
 
-    py_callback(PyObject* callable) : m_callable(callable)
+    explicit py_callback(PyObject* callable) : m_callable(callable)
     {
       // callable is always non-null here (validated before py_callback construction)
       PyGILRAII gil;
@@ -203,14 +203,17 @@ namespace {
   // use explicit instatiations to ensure that the function signature can
   // be derived by the graph builder
   struct py_callback_1 : public py_callback<1> {
+    using py_callback<1>::py_callback;
     intptr_t operator()(intptr_t arg0) { return call(arg0); }
   };
 
   struct py_callback_2 : public py_callback<2> {
+    using py_callback<2>::py_callback;
     intptr_t operator()(intptr_t arg0, intptr_t arg1) { return call(arg0, arg1); }
   };
 
   struct py_callback_3 : public py_callback<3> {
+    using py_callback<3>::py_callback;
     intptr_t operator()(intptr_t arg0, intptr_t arg1, intptr_t arg2)
     {
       return call(arg0, arg1, arg2);
@@ -218,14 +221,17 @@ namespace {
   };
 
   struct py_callback_1v : public py_callback<1> {
+    using py_callback<1>::py_callback;
     void operator()(intptr_t arg0) { callv(arg0); }
   };
 
   struct py_callback_2v : public py_callback<2> {
+    using py_callback<2>::py_callback;
     void operator()(intptr_t arg0, intptr_t arg1) { callv(arg0, arg1); }
   };
 
   struct py_callback_3v : public py_callback<3> {
+    using py_callback<3>::py_callback;
     void operator()(intptr_t arg0, intptr_t arg1, intptr_t arg2) { callv(arg0, arg1, arg2); }
   };
 
@@ -514,6 +520,7 @@ namespace {
   }                                                                                                \
                                                                                                    \
   struct provider_cb_##name : public py_callback<1> {                                              \
+    using py_callback<1>::py_callback;                                                             \
     cpptype operator()(data_cell_index const& id)                                                  \
     {                                                                                              \
       PyGILRAII gil;                                                                               \
@@ -632,6 +639,7 @@ namespace {
   }                                                                                                \
                                                                                                    \
   struct provider_cb_##name : public py_callback<1> {                                              \
+    using py_callback<1>::py_callback;                                                             \
     std::shared_ptr<std::vector<cpptype>> operator()(data_cell_index const& id)                    \
     {                                                                                              \
       PyGILRAII gil;                                                                               \
