@@ -212,7 +212,7 @@ jobs:
     name: Analyze ${{ matrix.language }} with CodeQL
     runs-on: ubuntu-24.04
     container:
-      image: ghcr.io/framework-r-d/phlex-ci:latest
+      image: ghcr.io/framework-r-d/phlex-ci:2026-06-23a
     env:
       local_checkout_path: .
       local_build_path: ${{ needs.setup.outputs.build_path }}

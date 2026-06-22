@@ -71,7 +71,6 @@ apt-get upgrade -y --no-install-recommends
 apt-get install -y --no-install-recommends \
     build-essential \
     ca-certificates \
-    cmake \
     curl \
     file \
     git \
