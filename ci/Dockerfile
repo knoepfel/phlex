@@ -121,6 +121,11 @@ PREP_SPACK_GROUP
 # Configure Spack: add repos, compilers, externals, and cache locations
 
 COPY packages.yaml /tmp/packages.yaml
+COPY upgrade_repos.py /tmp/upgrade_repos.py
+
+ENV GNUPGHOME=/run/gpg
+ENV SPACK_GNUPGHOME=/run/gpg
+
 RUN <<'SPACK_CONFIGURE_DEFAULTS'
 set -euo pipefail
 
@@ -136,22 +141,18 @@ find "$SPACK_REPO_ROOT" -type d -exec chmod g+s {} +
 
 . /spack/share/spack/setup-env.sh
 
-# Install settings from our copied packages.yaml
-spack config --scope site add -f /tmp/packages.yaml
-rm -f /tmp/packages.yaml
-
-# Recipe repos
-spack repo add --scope site $SPACK_REPO_ROOT/phlex-spack-recipes/spack_repo/phlex
-spack repo add --scope site $SPACK_REPO_ROOT/fnal_art/spack_repo/fnal_art
-spack repo add --scope site $SPACK_REPO_ROOT/spack-packages/repos/spack_repo/builtin
-
 # Other config settings
 spack config --scope defaults add config:build_stage:/opt/spack-stage
 spack config --scope defaults add config:source_cache:/opt/spack-cache/downloads
 spack config --scope defaults add config:misc_cache:/opt/spack-cache/misc
+spack config --scope defaults add config:install_tree:padded_length:255
 
 # Find compilers (destination packages.yaml for Spack >=1.0)
 spack --timestamp compiler find --scope site
+
+# Install settings from our copied packages.yaml
+spack config --scope site add -f /tmp/packages.yaml
+rm -f /tmp/packages.yaml
 
 # Discover externals
 #
@@ -159,10 +160,21 @@ spack --timestamp compiler find --scope site
 #   not necessarily include the Python.h header file.  We therefore need
 #   Spack to build Python.
 spack --timestamp external find --exclude python
-SPACK_CONFIGURE_DEFAULTS
 
-ENV GNUPGHOME=/run/gpg
-ENV SPACK_GNUPGHOME=/run/gpg
+# Configure recipe repos
+spack repo add --scope site $SPACK_REPO_ROOT/phlex-spack-recipes/spack_repo/phlex
+spack repo add --scope site $SPACK_REPO_ROOT/fnal_art/spack_repo/fnal_art
+spack repo add --scope site $SPACK_REPO_ROOT/spack-packages/repos/spack_repo/builtin
+
+spack repo list
+chmod +x /tmp/upgrade_repos.py
+spack python /tmp/upgrade_repos.py
+rm -f /tmp/upgrade_repos.py
+spack repo list
+spack clean -m
+spack audit configs
+
+SPACK_CONFIGURE_DEFAULTS
 
 ########################################################################
 # Configure binary mirrors used during installs
@@ -214,7 +226,7 @@ set -euo pipefail
 
 spack --timestamp install --fail-fast -j "$(nproc)" \
       --no-check-signature \
-      gcc@15.2 target=x86_64_v3 \
+      gcc@15.3 target=x86_64_v3 \
       +binutils+graphite~nvptx+piclibs+strip \
       build_type=Release \
       languages=c,c++,fortran,lto \
