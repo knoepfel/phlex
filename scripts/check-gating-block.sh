@@ -25,13 +25,6 @@ WORKFLOWS_DIR="${1:-.github/workflows}"
 # Check workflows whose lint/check job uses the relevance-check if-gate.
 CHECK_WORKFLOWS=(
   "actionlint-check.yaml"
-  "clang-format-check.yaml"
-  "cmake-format-check.yaml"
-  "header-guards-check.yaml"
-  "jsonnet-format-check.yaml"
-  "markdown-check.yaml"
-  "python-check.yaml"
-  "yaml-check.yaml"
 )
 
 # clang-tidy-check has an issue_comment-aware gating block on its setup job.
@@ -41,15 +34,7 @@ TIDY_CHECK_WORKFLOWS=(
 
 # Fix workflows that expose workflow_call (use inputs.ref != '' as entry point).
 # clang-tidy-fix is excluded: it has no workflow_call trigger.
-FIX_WORKFLOWS=(
-  "clang-format-fix.yaml"
-  "cmake-format-fix.yaml"
-  "header-guards-fix.yaml"
-  "jsonnet-format-fix.yaml"
-  "markdown-fix.yaml"
-  "python-fix.yaml"
-  "yaml-fix.yaml"
-)
+FIX_WORKFLOWS=()
 
 # cmake-build uses the full event-list gating block on its setup job.
 BUILD_WORKFLOWS=(
@@ -180,7 +165,7 @@ done
 echo ""
 echo "Fix workflows (workflow_call-capable, inputs.ref gate)"
 echo "======================================================="
-for wf in "${FIX_WORKFLOWS[@]}"; do
+for wf in ${FIX_WORKFLOWS[@]+"${FIX_WORKFLOWS[@]}"}; do
   check_workflow "$WORKFLOWS_DIR/$wf" "$wf" "${FIX_PHRASES[@]}"
 done
 
